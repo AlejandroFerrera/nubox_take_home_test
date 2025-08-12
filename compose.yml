@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:17.5
+    container_name: openaq-postgres
+    environment:
+      POSTGRES_USER: nubox
+      POSTGRES_PASSWORD: nuboxpass
+      POSTGRES_DB: openaq
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nubox -d openaq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  openaq-app:
+    build: .
+    container_name: openaq-app
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: nubox
+      POSTGRES_PASSWORD: nuboxpass
+      POSTGRES_DB: openaq
+      OPENAQ_API_BASE_URL: https://api.openaq.org
+      OPENAQ_API_KEY: 149ca4c2c62b4a648a778849ffcf4619bb8c800cacc5af80cf31efb7763613f7
+      API_TIMEOUT: 30
+      LOG_LEVEL: INFO
+      COUNTRY: ${COUNTRY:-Chile}
+      LOCALITY: ${LOCALITY:-'Santiago'}
+    command: ["python", "src/main.py", "--country", "${COUNTRY:-Chile}", "--locality", "${LOCALITY:-Santiago}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - run
+
+volumes:
+  postgres_data:
